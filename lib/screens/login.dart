@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:face_detection_final/screens/face_detection_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:face_detection_final/database/user_database.dart';
@@ -37,8 +38,11 @@ class _LoginScreenState extends State<LoginScreen> {
       for (var user in users) {
         List<double> storedEmbedding = user[UserDatabase.columnEmbedding];
         double similarity = _calculateSimilarity(inputEmbedding, storedEmbedding);
-        if (similarity >= 0.7) {
+        if (similarity >= 0.5) {
           setState(() => _userName = user[UserDatabase.columnName]);
+
+          Fluttertoast.showToast(msg: "hi  $_userName , You are logged in successfully.");
+          await Future.delayed(Duration(seconds: 3));
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => HomePage(userId: user[UserDatabase.columnId])),
@@ -52,6 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
       Fluttertoast.showToast(msg: "Error: ${e.toString()}", textColor: Colors.white, backgroundColor: Colors.red);
     }
   }
+
 
   double _calculateSimilarity(List<double> emb1, List<double> emb2) {
     double dotProduct = 0.0, normA = 0.0, normB = 0.0;
@@ -85,7 +90,10 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: () => Navigator.pushNamed(context, "/other_login"),
+                onPressed: () {
+
+                  Fluttertoast.showToast(msg: 'Not implement yet');
+                },
                 icon: Icon(Icons.login),
                 label: Text("Login with Others"),
               ),
