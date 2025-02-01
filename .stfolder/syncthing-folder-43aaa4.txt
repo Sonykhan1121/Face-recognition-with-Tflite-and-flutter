@@ -1,0 +1,5 @@
+# This directory is a Syncthing folder marker.
+# Do not delete.
+
+folderID: cgmzy-dcudj
+created: 2025-01-31T17:19:59+06:00
