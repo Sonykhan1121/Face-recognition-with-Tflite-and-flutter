@@ -1,5 +1,3 @@
-import 'package:face_detection_final/FaceView/face_detection_view.dart';
-import 'package:face_detection_final/screens/face_detection_screen.dart';
 
 import 'package:face_detection_final/screens/registration.dart';
 import 'package:flutter/material.dart';
