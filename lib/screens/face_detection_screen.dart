@@ -5,6 +5,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 
+import '../services/facepainter.dart';
+
 class FaceDetectionScreen extends StatefulWidget {
   @override
   _FaceDetectionScreenState createState() => _FaceDetectionScreenState();
@@ -65,6 +67,9 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     try {
       final faces = await _faceDetector.processImage(inputImage);
       if (faces.isNotEmpty) {
+        setState(() {
+            _currentFace =faces.first;
+        });
         _validateFace(faces.first);
       } else {
         setState(() => _isValidFace = false);
@@ -116,6 +121,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     setState(() {
       _currentFace = face;
       _isValidFace = isFrontal && eyesOpen;
+
     });
 
     if (_isValidFace) {
@@ -126,6 +132,11 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
   void _captureValidImage() async {
     if (_isValidFace) {
       final image = await _controller.takePicture();
+      final inputImage = InputImage.fromFilePath(image.path);
+      final faces = await _faceDetector.processImage(inputImage);
+      setState(() {
+        _currentFace = faces.first;
+      });
       if (mounted) Navigator.pop(context, File(image.path));
     }
   }
@@ -135,20 +146,21 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     return Scaffold(
       body: _isCameraInitialized
           ? Stack(
-        children: [
-          CameraPreview(_controller),
-          if (_currentFace != null && _currentImageSize != null)
-            CustomPaint(
-              painter: FacePainter(
-                face: _currentFace!,
-                imageSize: _currentImageSize!,
-                isFrontCamera: true,
-                isValidFace: _isValidFace,
-              ),
-            ),
-          _buildInstructions(),
-        ],
-      )
+              children: [
+                CameraPreview(_controller),
+                (_currentFace != null && _currentImageSize != null)
+                    ? CustomPaint(
+                        painter: FacePainter(
+                          face: _currentFace!,
+                          imageSize: _currentImageSize!,
+                          isFrontCamera: true,
+                          isValidFace: _isValidFace,
+                        ),
+                      )
+                    : Text('Not working'),
+                _buildInstructions(),
+              ],
+            )
           : Center(child: CircularProgressIndicator()),
     );
   }
@@ -165,12 +177,15 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
             style: TextStyle(
               color: _isValidFace ? Colors.green : Colors.white,
               fontSize: 20,
-              shadows: [Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1, 1))],
+              shadows: [
+                Shadow(color: Colors.black, blurRadius: 2, offset: Offset(1, 1))
+              ],
             ),
           ),
           SizedBox(height: 20),
           _isValidFace
-              ? CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.green))
+              ? CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green))
               : Icon(Icons.face, size: 60, color: Colors.white),
         ],
       ),
@@ -185,52 +200,4 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
   }
 }
 
-class FacePainter extends CustomPainter {
-  final Face face;
-  final Size imageSize;
-  final bool isFrontCamera;
-  final bool isValidFace;
 
-  FacePainter({
-    required this.face,
-    required this.imageSize,
-    required this.isFrontCamera,
-    required this.isValidFace,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.0
-      ..color = isValidFace ? Colors.green : Colors.blue;
-
-    final scaleX = size.width / imageSize.width;
-    final scaleY = size.height / imageSize.height;
-
-    double left = face.boundingBox.left * scaleX;
-    double right = face.boundingBox.right * scaleX;
-    double top = face.boundingBox.top * scaleY;
-    double bottom = face.boundingBox.bottom * scaleY;
-
-    if (isFrontCamera) {
-      final temp = left;
-      left = size.width - right;
-      right = size.width - temp;
-    }
-
-    final rect = Rect.fromLTRB(
-      left.clamp(0, size.width),
-      top.clamp(0, size.height),
-      right.clamp(0, size.width),
-      bottom.clamp(0, size.height),
-    );
-
-    final center = rect.center;
-    final radius = math.max(rect.width, rect.height) / 2;
-    canvas.drawCircle(center, radius, paint);
-  }
-
-  @override
-  bool shouldRepaint(FacePainter oldDelegate) => true;
-}

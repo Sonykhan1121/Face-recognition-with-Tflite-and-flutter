@@ -33,23 +33,35 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _embedder.initialize();
       final inputEmbedding = await _embedder.getEmbedding(_image!);
+      double maxSimilarity = 0.0;
+      String? matchedUserName;
+      int? matchedUserId;
 
       final users = await _db.getUsers();
+
       for (var user in users) {
         List<double> storedEmbedding = user[UserDatabase.columnEmbedding];
         double similarity = _calculateSimilarity(inputEmbedding, storedEmbedding);
-        if (similarity >= 0.5) {
-          setState(() => _userName = user[UserDatabase.columnName]);
 
-          Fluttertoast.showToast(msg: "hi  $_userName , You are logged in successfully.");
-          await Future.delayed(Duration(seconds: 3));
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => HomePage(userId: user[UserDatabase.columnId])),
-          );
-          return;
+        if (similarity > maxSimilarity) {
+          maxSimilarity = similarity;
+          matchedUserName = user[UserDatabase.columnName];
+          matchedUserId = user[UserDatabase.columnId];
         }
       }
+
+      if (maxSimilarity >= 0.7 && matchedUserName != null && matchedUserId != null) {
+        setState(() => _userName = matchedUserName);
+
+        Fluttertoast.showToast(msg: "Hi $_userName, You are logged in successfully.");
+        await Future.delayed(Duration(seconds: 3));
+
+        // Navigator.pushReplacement(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => HomePage(userId: matchedUserId!)),
+        // );
+      }
+
 
       Fluttertoast.showToast(msg: "Your face is not recognized.", textColor: Colors.white, backgroundColor: Colors.red);
     } catch (e) {

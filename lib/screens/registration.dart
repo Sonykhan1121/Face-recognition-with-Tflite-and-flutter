@@ -121,7 +121,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   child: _image == null ? const Icon(Icons.add_a_photo, size: 60) : null,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 20,),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Name'),
