@@ -46,6 +46,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     try {
       final cameras = await availableCameras();
       _controller = CameraController(cameras[1], ResolutionPreset.high);
+
       await _controller.initialize();
       if (!mounted) return;
 
@@ -126,7 +127,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     // Get the face bounding box
     final faceRect = face.boundingBox;
 
-    final double scaleFactor = 0.7; // Shrink the face bounding box by 70%
+    final double scaleFactor = 0.4; // Shrink the face bounding box by 70%
 
     final double newWidth = faceRect.width * scaleFactor;
     final double newHeight = faceRect.height * scaleFactor;
