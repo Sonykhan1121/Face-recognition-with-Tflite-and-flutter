@@ -13,7 +13,7 @@ class FaceEmbedder {
 
     try {
       _interpreter = await Interpreter.fromAsset(
-        'assets/facenet.tflite',
+        'assets/facenet_512.tflite',
         options: InterpreterOptions()..threads = 4,
       );
       _verifyModel();
@@ -28,7 +28,7 @@ class FaceEmbedder {
 
     try {
       final input = await _preprocessImage(imageFile);
-      final output = Float32List(128);
+      final output = Float32List(512);
       _interpreter.run(input.buffer, output.buffer);
       return _normalize(output);
     } catch (e) {
@@ -75,7 +75,7 @@ class FaceEmbedder {
       throw Exception('Invalid input shape: ${input.shape}');
     }
 
-    if (!(output.shape[0] == 1 && output.shape[1] == 128)) {
+    if (!(output.shape[0] == 1 && output.shape[1] == 512)) {
       throw Exception('Invalid output shape: ${output.shape}');
     }
 

@@ -1,11 +1,9 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:flutter/services.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
-
-import '../services/facepainter.dart';
 
 class FaceDetectionScreen extends StatefulWidget {
   @override
@@ -18,8 +16,13 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
   bool _isValidFace = false;
   bool _isProcessing = false;
   bool _isCameraInitialized = false;
-  Face? _currentFace;
+  bool _isCapturing = false;
   Size? _currentImageSize;
+  Rect? _faceRect;
+
+  // Add validation rectangle parameters
+  final double _validationSize = 512;
+  late Rect _validationRect;
 
   @override
   void initState() {
@@ -46,7 +49,17 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
       await _controller.initialize();
       if (!mounted) return;
 
-      setState(() => _isCameraInitialized = true);
+      setState(() {
+        _isCameraInitialized = true;
+        // Initialize validation rectangle
+        _validationRect = Rect.fromCenter(
+          center: Offset(_controller.value.previewSize!.width / 2,
+              _controller.value.previewSize!.height / 2),
+          width: _controller.value.previewSize!.width * 0.5,
+          height: _controller.value.previewSize!.height * 0.5,
+        );
+      });
+
       _initializeDetector();
       _controller.startImageStream(_processCameraImage);
     } catch (e) {
@@ -67,9 +80,6 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     try {
       final faces = await _faceDetector.processImage(inputImage);
       if (faces.isNotEmpty) {
-        setState(() {
-            _currentFace =faces.first;
-        });
         _validateFace(faces.first);
       } else {
         setState(() => _isValidFace = false);
@@ -113,16 +123,48 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
   }
 
   void _validateFace(Face face) {
+    // Get the face bounding box
+    final faceRect = face.boundingBox;
+
+    final double scaleFactor = 0.7; // Shrink the face bounding box by 70%
+
+    final double newWidth = faceRect.width * scaleFactor;
+    final double newHeight = faceRect.height * scaleFactor;
+
+    final double newLeft = faceRect.left + (faceRect.width - newWidth) / 2;
+    final double newTop = faceRect.top + (faceRect.height - newHeight) / 2;
+
+    final adjustedFaceRect =
+        Rect.fromLTRB(newLeft, newTop, newLeft + newWidth, newTop + newHeight);
+
+    // Now, use adjustedFaceRect for further processing
+    print('Adjusted Face Rect: $adjustedFaceRect');
+
+    // final isFaceFullyInside =
+    //     _validationRect.contains(adjustedFaceRect.topLeft) &&
+    //         _validationRect.contains(adjustedFaceRect.bottomRight);
+
+    // Check if the face bounding box intersects with the validation rectangle
+    final isFaceFullyInside = _validationRect.overlaps(faceRect);
+
+    // Check face orientation
     final isFrontal = (face.headEulerAngleY?.abs() ?? 0) < 20 &&
         (face.headEulerAngleX?.abs() ?? 0) < 20;
+
+    // Check if eyes are open
     final eyesOpen = (face.leftEyeOpenProbability ?? 1) > 0.8 &&
         (face.rightEyeOpenProbability ?? 1) > 0.8;
 
     setState(() {
-      _currentFace = face;
-      _isValidFace = isFrontal && eyesOpen;
-
+      _isValidFace = isFaceFullyInside && isFrontal && eyesOpen;
+      _faceRect = faceRect;
     });
+    // print('Face bounding box: $faceRect');
+    // print('Validation rectangle: $_validationRect');
+    // print('Is face fully inside: $isFaceFullyInside');
+    // print("Face Rect: $faceRect");
+    // print("Validation Rect: $_validationRect");
+    // print("Is Overlap: ${_validationRect.overlaps(faceRect)}");
 
     if (_isValidFace) {
       Future.delayed(Duration(seconds: 2), _captureValidImage);
@@ -130,16 +172,46 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
   }
 
   void _captureValidImage() async {
-    if (_isValidFace) {
+    if (!_isValidFace || !_isCameraInitialized) {
+      return; // Prevent capture if the face is not valid or camera is not initialized
+    }
+
+    if (_isCapturing) {
+      return; // Prevent multiple captures
+    }
+
+    setState(() {
+      _isCapturing = true;
+    });
+
+    try {
+      // Ensure that the CameraController is not disposed
+      if (!_controller.value.isInitialized) {
+        print("Camera not initialized.");
+        return;
+      }
+
       final image = await _controller.takePicture();
-      final inputImage = InputImage.fromFilePath(image.path);
-      final faces = await _faceDetector.processImage(inputImage);
+
+      // Check if the widget is still mounted before navigating
+      if (mounted) {
+        // Delay before popping the result to avoid immediate navigation
+        Future.delayed(Duration(seconds: 2), () {
+          // Only pop the context if the widget is still mounted
+          if (mounted) {
+            Navigator.pop(context, File(image.path));
+          }
+        });
+      }
+    } catch (e) {
+      print("Error capturing image: $e");
+    } finally {
       setState(() {
-        _currentFace = faces.first;
+        _isCapturing = false;
       });
-      if (mounted) Navigator.pop(context, File(image.path));
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -148,16 +220,24 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
           ? Stack(
               children: [
                 CameraPreview(_controller),
-                (_currentFace != null && _currentImageSize != null)
-                    ? CustomPaint(
-                        painter: FacePainter(
-                          face: _currentFace!,
-                          imageSize: _currentImageSize!,
-                          isFrontCamera: true,
-                          isValidFace: _isValidFace,
-                        ),
-                      )
-                    : Text('Not working'),
+
+                // Add validation rectangle
+                Center(
+                  child: Container(
+                    width: _validationSize,
+                    height: _validationSize,
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: _isValidFace ? Colors.green : Colors.white,
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+
+                // Optional: Draw face bounding box
+
                 _buildInstructions(),
               ],
             )
@@ -173,7 +253,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
       child: Column(
         children: [
           Text(
-            _isValidFace ? "Hold still..." : "Align face in circle",
+            _isValidFace ? "Hold still..." : "Align face in the square",
             style: TextStyle(
               color: _isValidFace ? Colors.green : Colors.white,
               fontSize: 20,
@@ -194,10 +274,8 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
     _faceDetector.close();
+    _controller.dispose();
     super.dispose();
   }
 }
-
-

@@ -20,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _db = UserDatabase();
   final _embedder = FaceEmbedder();
 
+
   Future<void> _loginWithFace() async {
     final imgFile = await Navigator.push<File?>(
       context,
@@ -53,17 +54,22 @@ class _LoginScreenState extends State<LoginScreen> {
       if (maxSimilarity >= 0.7 && matchedUserName != null && matchedUserId != null) {
         setState(() => _userName = matchedUserName);
 
-        Fluttertoast.showToast(msg: "Hi $_userName, You are logged in successfully.");
-        await Future.delayed(Duration(seconds: 3));
+        Fluttertoast.showToast(msg: "Hi $_userName, You are logged in successfully.",toastLength: Toast.LENGTH_LONG);
 
-        // Navigator.pushReplacement(
-        //   context,
-        //   MaterialPageRoute(builder: (context) => HomePage(userId: matchedUserId!)),
-        // );
+
+
+
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage(userId: matchedUserId!)),
+        );
+        return;
       }
 
 
       Fluttertoast.showToast(msg: "Your face is not recognized.", textColor: Colors.white, backgroundColor: Colors.red);
+
     } catch (e) {
       Fluttertoast.showToast(msg: "Error: ${e.toString()}", textColor: Colors.white, backgroundColor: Colors.red);
     }
