@@ -20,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _db = UserDatabase();
   final _embedder = FaceEmbedder();
 
-
   Future<void> _loginWithFace() async {
     final imgFile = await Navigator.push<File?>(
       context,
@@ -29,6 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (imgFile != null) {
       setState(() => _image = imgFile);
+    } else {
+      Fluttertoast.showToast(msg: 'You do not capture any image');
+      return;
     }
 
     try {
@@ -39,10 +41,15 @@ class _LoginScreenState extends State<LoginScreen> {
       int? matchedUserId;
 
       final users = await _db.getUsers();
+      if (users.isEmpty) {
+        Fluttertoast.showToast(msg: "No users Registered Yet");
+        return;
+      }
 
       for (var user in users) {
         List<double> storedEmbedding = user[UserDatabase.columnEmbedding];
-        double similarity = _calculateSimilarity(inputEmbedding, storedEmbedding);
+        double similarity =
+            _calculateSimilarity(inputEmbedding, storedEmbedding);
 
         if (similarity > maxSimilarity) {
           maxSimilarity = similarity;
@@ -51,30 +58,38 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
 
-      if (maxSimilarity >= 0.7 && matchedUserName != null && matchedUserId != null) {
+      if (maxSimilarity >= 0.7 &&
+          matchedUserName != null &&
+          matchedUserId != null) {
         setState(() => _userName = matchedUserName);
 
-        Fluttertoast.showToast(msg: "Hi $_userName, You are logged in successfully.",toastLength: Toast.LENGTH_LONG);
+        Fluttertoast.showToast(
+            msg: "Hi $_userName, You are logged in successfully.",
+            toastLength: Toast.LENGTH_LONG);
+
+       Future.delayed(Duration(seconds: 1));
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => HomePage(userId: matchedUserId!)),
+          );
 
 
-
-
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => HomePage(userId: matchedUserId!)),
-        );
+        return;
+      } else {
+        Fluttertoast.showToast(
+            msg: "Your face is not recognized.",
+            textColor: Colors.white,
+            backgroundColor: Colors.red);
         return;
       }
-
-
-      Fluttertoast.showToast(msg: "Your face is not recognized.", textColor: Colors.white, backgroundColor: Colors.red);
-
     } catch (e) {
-      Fluttertoast.showToast(msg: "Error: ${e.toString()}", textColor: Colors.white, backgroundColor: Colors.red);
+      Fluttertoast.showToast(
+          msg: "Error: ${e.runtimeType.toString()}",
+          textColor: Colors.white,
+          backgroundColor: Colors.red);
     }
   }
-
 
   double _calculateSimilarity(List<double> emb1, List<double> emb2) {
     double dotProduct = 0.0, normA = 0.0, normB = 0.0;
@@ -89,7 +104,10 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Login"), backgroundColor: Colors.pink, centerTitle: true),
+      appBar: AppBar(
+          title: Text("Login"),
+          backgroundColor: Colors.pink,
+          centerTitle: true),
       body: Padding(
         padding: EdgeInsets.all(20),
         child: Center(
@@ -97,9 +115,13 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (_userName != null) Text("Hi, $_userName", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              if (_userName != null)
+                Text("Hi, $_userName",
+                    style:
+                        TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               SizedBox(height: 20),
-              if (_image != null) CircleAvatar(radius: 80, backgroundImage: FileImage(_image!)),
+              if (_image != null)
+                CircleAvatar(radius: 80, backgroundImage: FileImage(_image!)),
               SizedBox(height: 30),
               ElevatedButton.icon(
                 onPressed: _loginWithFace,
@@ -109,7 +131,6 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: () {
-
                   Fluttertoast.showToast(msg: 'Not implement yet');
                 },
                 icon: Icon(Icons.login),

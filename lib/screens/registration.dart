@@ -147,7 +147,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   const SizedBox(width: 100),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pushReplacement(
+                      Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => LoginScreen()),
                       );

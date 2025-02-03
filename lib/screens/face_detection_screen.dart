@@ -213,15 +213,20 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _isCameraInitialized
           ? Stack(
               children: [
-                CameraPreview(_controller),
-
+                Positioned.fill(
+                  child: RotatedBox(
+                    quarterTurns: 3, // Rotate 270 degrees (90 counter-clockwise)
+                    child: SizedBox.expand(
+                      child: CameraPreview(_controller),
+                    ),
+                  ),
+                ),
                 // Add validation rectangle
                 Center(
                   child: Container(
