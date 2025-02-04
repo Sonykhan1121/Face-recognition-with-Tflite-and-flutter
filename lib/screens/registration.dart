@@ -6,6 +6,8 @@ import 'package:face_detection_final/screens/login.dart';
 import 'package:face_detection_final/services/face_embedding.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:image/image.dart' as img;
 
 class RegistrationScreen extends StatefulWidget {
   @override
@@ -27,15 +29,86 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   Future<void> _pickImage() async {
-    final imgFile = await Navigator.push<File?>(
-      context,
-      MaterialPageRoute(builder: (context) => FaceDetectionScreen()),
-    );
+    try {
+      final imgFile = await Navigator.push<File?>(
+        context,
+        MaterialPageRoute(builder: (context) => FaceDetectionScreen()),
+      );
 
-    if (imgFile != null) {
-      setState(() => _image = imgFile);
+      if (imgFile == null) {
+        Fluttertoast.showToast(msg: "⚠️ No image selected!", backgroundColor: Colors.orange);
+        return;
+      }
+
+      final croppedFace = await cropFace(imgFile);
+      setState(() => _image = croppedFace ?? imgFile); // Use cropped face or original
+
+      if (_image == null) {
+        Fluttertoast.showToast(msg: "⚠️ Face not detected properly!", backgroundColor: Colors.orange);
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: "⚠️ Error picking image: $e", backgroundColor: Colors.red);
     }
   }
+
+
+  Future<File?> cropFace(File imgFile) async {
+    try {
+      final inputImage = InputImage.fromFile(imgFile);
+      final faceDetector = GoogleMlKit.vision.faceDetector(FaceDetectorOptions(
+        enableContours: true,
+        enableClassification: true,
+        enableLandmarks: true,
+        enableTracking: true,
+        minFaceSize: 0.25,
+        performanceMode: FaceDetectorMode.accurate,
+      ));
+
+      final faces = await faceDetector.processImage(inputImage);
+      await faceDetector.close();
+
+      if (faces.isEmpty) {
+        Fluttertoast.showToast(msg: "⚠️ No face detected!", backgroundColor: Colors.orange);
+        return null;
+      }
+
+      // Load image into a processable format
+      final imageBytes = await imgFile.readAsBytes();
+      final image = img.decodeImage(imageBytes);
+      if (image == null) {
+        Fluttertoast.showToast(msg: "⚠️ Invalid image format!", backgroundColor: Colors.red);
+        return null;
+      }
+
+      // Get first detected face bounds
+      final face = faces.first;
+      final rect = face.boundingBox;
+
+      if (rect.width <= 0 || rect.height <= 0) {
+        Fluttertoast.showToast(msg: "⚠️ Face cropping failed!", backgroundColor: Colors.red);
+        return null;
+      }
+
+      // Ensure cropping dimensions do not exceed image size
+      int x = rect.left.toInt().clamp(0, image.width - 1);
+      int y = rect.top.toInt().clamp(0, image.height - 1);
+      int width = rect.width.toInt().clamp(1, image.width - x);
+      int height = rect.height.toInt().clamp(1, image.height - y);
+
+      // Crop the face
+      final croppedFace = img.copyCrop(image, x: x, y: y, width: width, height: height);
+
+      // Convert back to File
+      final croppedFile = File(imgFile.path.replaceFirst('.jpg', '_face.jpg'));
+      await croppedFile.writeAsBytes(img.encodeJpg(croppedFace));
+
+      return croppedFile;
+    } catch (e) {
+      Fluttertoast.showToast(msg: "⚠️ Error cropping face: $e", backgroundColor: Colors.red);
+      return null;
+    }
+  }
+
 
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate() || _image == null) {
@@ -68,6 +141,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         return;
       }
 
+
       final embedder = FaceEmbedder();
       await embedder.initialize();
       final embedding = await embedder.getEmbedding(_image!);
@@ -97,7 +171,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context)
+
+
+
+  {
     return Scaffold(
       appBar: AppBar(
         title: const Text(

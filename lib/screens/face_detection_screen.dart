@@ -45,7 +45,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
   Future<void> _initializeCamera() async {
     try {
       final cameras = await availableCameras();
-      _controller = CameraController(cameras[1], ResolutionPreset.high);
+      _controller = CameraController(cameras[1], ResolutionPreset.max);
 
       await _controller.initialize();
       if (!mounted) return;
