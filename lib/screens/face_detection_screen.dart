@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'dart:math' as math;
+
+import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
 
 class FaceDetectionScreen extends StatefulWidget {
@@ -28,6 +28,13 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
   void initState() {
     super.initState();
     _initializeCamera();
+  }
+  @override
+  void dispose() {
+    _faceDetector.close();
+    _controller.dispose();
+    super.dispose();
+
   }
 
   void _initializeDetector() {
@@ -70,6 +77,8 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
 
   Future<void> _processCameraImage(CameraImage image) async {
     if (_isProcessing || !_controller.value.isInitialized) return;
+    if(!mounted)
+      return;
 
     setState(() {
       _isProcessing = true;
@@ -88,7 +97,11 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     } catch (e) {
       print("Face detection error: $e");
     } finally {
-      setState(() => _isProcessing = false);
+      if(mounted)
+      {
+        setState(() => _isProcessing = false);
+      }
+
     }
   }
 
@@ -136,7 +149,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     final double newTop = faceRect.top + (faceRect.height - newHeight) / 2;
 
     final adjustedFaceRect =
-        Rect.fromLTRB(newLeft, newTop, newLeft + newWidth, newTop + newHeight);
+    Rect.fromLTRB(newLeft, newTop, newLeft + newWidth, newTop + newHeight);
 
     // Now, use adjustedFaceRect for further processing
     print('Adjusted Face Rect: $adjustedFaceRect');
@@ -156,6 +169,9 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     final eyesOpen = (face.leftEyeOpenProbability ?? 1) > 0.8 &&
         (face.rightEyeOpenProbability ?? 1) > 0.8;
 
+    if(!mounted) {
+      return;
+    }
     setState(() {
       _isValidFace = isFaceFullyInside && isFrontal && eyesOpen;
       _faceRect = faceRect;
@@ -179,6 +195,9 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
 
     if (_isCapturing) {
       return; // Prevent multiple captures
+    }
+    if(!mounted) {
+      return;
     }
 
     setState(() {
@@ -207,9 +226,13 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     } catch (e) {
       print("Error capturing image: $e");
     } finally {
-      setState(() {
-        _isCapturing = false;
-      });
+      if(mounted)
+      {
+        setState(() {
+          _isCapturing = false;
+        });
+      }
+
     }
   }
 
@@ -218,35 +241,35 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     return Scaffold(
       body: _isCameraInitialized
           ? Stack(
-              children: [
-                Positioned.fill(
-                  child: RotatedBox(
-                    quarterTurns: 3, // Rotate 270 degrees (90 counter-clockwise)
-                    child: SizedBox.expand(
-                      child: CameraPreview(_controller),
-                    ),
-                  ),
+        children: [
+          Positioned.fill(
+            child: RotatedBox(
+              quarterTurns: 3, // Rotate 270 degrees (90 counter-clockwise)
+              child: SizedBox.expand(
+                child: CameraPreview(_controller),
+              ),
+            ),
+          ),
+          // Add validation rectangle
+          Center(
+            child: Container(
+              width: _validationSize,
+              height: _validationSize,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: _isValidFace ? Colors.green : Colors.white,
+                  width: 2,
                 ),
-                // Add validation rectangle
-                Center(
-                  child: Container(
-                    width: _validationSize,
-                    height: _validationSize,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: _isValidFace ? Colors.green : Colors.white,
-                        width: 2,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
 
-                // Optional: Draw face bounding box
+          // Optional: Draw face bounding box
 
-                _buildInstructions(),
-              ],
-            )
+          _buildInstructions(),
+        ],
+      )
           : Center(child: CircularProgressIndicator()),
     );
   }
@@ -271,17 +294,12 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
           SizedBox(height: 20),
           _isValidFace
               ? CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.green))
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.green))
               : Icon(Icons.face, size: 60, color: Colors.white),
         ],
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _faceDetector.close();
-    _controller.dispose();
-    super.dispose();
-  }
+
 }

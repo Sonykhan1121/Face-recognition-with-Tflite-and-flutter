@@ -1,0 +1,1 @@
+E:\Face-recognition-with-Tflite-and-flutter\build\app\intermediates\cxx\Debug\2821362m\obj\armeabi-v7a
