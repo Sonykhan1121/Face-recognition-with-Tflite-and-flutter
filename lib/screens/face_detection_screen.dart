@@ -21,7 +21,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
   Rect? _faceRect;
 
   // Add validation rectangle parameters
-  final double _validationSize = 512;
+   double _validationSize = 512;
   late Rect _validationRect;
 
   @override
@@ -59,13 +59,28 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
 
       setState(() {
         _isCameraInitialized = true;
-        // Initialize validation rectangle
+
+        double previewWidth = _controller.value.previewSize!.height;
+        double previewHeight = _controller.value.previewSize!.width;
+
+        double screenWidth = MediaQuery.of(context).size.width;
+        double screenHeight = MediaQuery.of(context).size.height;
+
+        // Calculate scaling factors
+        double scaleX = screenWidth / previewWidth;
+        double scaleY = screenHeight / previewHeight;
+
+        // Set validation rectangle dynamically
+        _validationSize = previewWidth * 0.8 * scaleX;
         _validationRect = Rect.fromCenter(
-          center: Offset(_controller.value.previewSize!.width / 2,
-              _controller.value.previewSize!.height / 2),
-          width: _controller.value.previewSize!.width * 0.5,
-          height: _controller.value.previewSize!.height * 0.5,
+          center: Offset(screenWidth / 2, screenHeight / 2),
+          width: _validationSize,
+          height: _validationSize,
         );
+
+        print('Preview Width: $previewWidth, Preview Height: $previewHeight');
+        print('Screen Width: $screenWidth, Screen Height: $screenHeight');
+        print('Validation Rect: $_validationRect');
       });
 
       _initializeDetector();
@@ -89,6 +104,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
 
     try {
       final faces = await _faceDetector.processImage(inputImage);
+      print(faces);
       if (faces.isNotEmpty) {
         _validateFace(faces.first);
       } else {
@@ -140,23 +156,6 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     // Get the face bounding box
     final faceRect = face.boundingBox;
 
-    final double scaleFactor = 0.4; // Shrink the face bounding box by 70%
-
-    final double newWidth = faceRect.width * scaleFactor;
-    final double newHeight = faceRect.height * scaleFactor;
-
-    final double newLeft = faceRect.left + (faceRect.width - newWidth) / 2;
-    final double newTop = faceRect.top + (faceRect.height - newHeight) / 2;
-
-    final adjustedFaceRect =
-    Rect.fromLTRB(newLeft, newTop, newLeft + newWidth, newTop + newHeight);
-
-    // Now, use adjustedFaceRect for further processing
-    print('Adjusted Face Rect: $adjustedFaceRect');
-
-    // final isFaceFullyInside =
-    //     _validationRect.contains(adjustedFaceRect.topLeft) &&
-    //         _validationRect.contains(adjustedFaceRect.bottomRight);
 
     // Check if the face bounding box intersects with the validation rectangle
     final isFaceFullyInside = _validationRect.overlaps(faceRect);
@@ -253,8 +252,8 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
           // Add validation rectangle
           Center(
             child: Container(
-              width: _validationSize,
-              height: _validationSize,
+              width: _validationRect.width,
+              height: _validationRect.height,
               decoration: BoxDecoration(
                 border: Border.all(
                   color: _isValidFace ? Colors.green : Colors.white,
@@ -262,6 +261,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
+
             ),
           ),
 
