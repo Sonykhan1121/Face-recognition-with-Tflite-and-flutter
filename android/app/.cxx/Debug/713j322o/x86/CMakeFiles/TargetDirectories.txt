@@ -1,0 +1,2 @@
+D:/Face-recognition-with-Tflite-and-flutter/android/app/.cxx/Debug/713j322o/x86/CMakeFiles/edit_cache.dir
+D:/Face-recognition-with-Tflite-and-flutter/android/app/.cxx/Debug/713j322o/x86/CMakeFiles/rebuild_cache.dir

@@ -1,15 +1,12 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:face_detection_final/screens/face_detection_screen.dart';
-import 'package:flutter/material.dart';
+import 'dart:math';
+
 import 'package:face_detection_final/database/user_database.dart';
+import 'package:face_detection_final/screens/face_detection_screen.dart';
 import 'package:face_detection_final/screens/homepage.dart';
 import 'package:face_detection_final/services/face_embedding.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'dart:math';
-import 'package:image/image.dart' as img;
 
 
 class LoginScreen extends StatefulWidget {
@@ -32,8 +29,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (imgFile != null) {
 
-      final croppedFace = await cropFace(imgFile);
-      setState(() => _image = croppedFace != null?croppedFace:imgFile);
+      // final croppedFace = await cropFace(imgFile);
+      setState(() => _image = imgFile);
     } else {
       Fluttertoast.showToast(msg: 'You do not capture any image');
       return;
@@ -69,16 +66,16 @@ class _LoginScreenState extends State<LoginScreen> {
           matchedUserId != null) {
         setState(() => _userName = matchedUserName);
 
-        Fluttertoast.showToast(
-            msg: "Hi $_userName, You are logged in successfully.",
-            toastLength: Toast.LENGTH_LONG);
-
-       Future.delayed(Duration(seconds: 1));
-          Navigator.push(
+        Future.delayed(Duration(seconds: 1),(){
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
                 builder: (context) => HomePage(userId: matchedUserId!)),
           );
+        });
+
+
+
 
 
         return;
@@ -97,62 +94,62 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<File?> cropFace(File imgFile) async {
-    try {
-      final inputImage = InputImage.fromFile(imgFile);
-      final faceDetector = GoogleMlKit.vision.faceDetector(FaceDetectorOptions(
-        enableContours: true,
-        enableClassification: true,
-        enableLandmarks: true,
-        enableTracking: true,
-        minFaceSize: 0.25,
-        performanceMode: FaceDetectorMode.accurate,
-      ));
-
-      final faces = await faceDetector.processImage(inputImage);
-      await faceDetector.close();
-
-      if (faces.isEmpty) {
-        Fluttertoast.showToast(msg: "⚠️ No face detected!", backgroundColor: Colors.orange);
-        return null;
-      }
-
-      // Load image into a processable format
-      final imageBytes = await imgFile.readAsBytes();
-      final image = img.decodeImage(imageBytes);
-      if (image == null) {
-        Fluttertoast.showToast(msg: "⚠️ Invalid image format!", backgroundColor: Colors.red);
-        return null;
-      }
-
-      // Get first detected face bounds
-      final face = faces.first;
-      final rect = face.boundingBox;
-
-      if (rect.width <= 0 || rect.height <= 0) {
-        Fluttertoast.showToast(msg: "⚠️ Face cropping failed!", backgroundColor: Colors.red);
-        return null;
-      }
-
-      // Ensure cropping dimensions do not exceed image size
-      int x = rect.left.toInt().clamp(0, image.width - 1);
-      int y = rect.top.toInt().clamp(0, image.height - 1);
-      int width = rect.width.toInt().clamp(1, image.width - x);
-      int height = rect.height.toInt().clamp(1, image.height - y);
-
-      // Crop the face
-      final croppedFace = img.copyCrop(image, x: x, y: y, width: width, height: height);
-
-      // Convert back to File
-      final croppedFile = File(imgFile.path.replaceFirst('.jpg', '_face.jpg'));
-      await croppedFile.writeAsBytes(img.encodeJpg(croppedFace));
-
-      return croppedFile;
-    } catch (e) {
-      Fluttertoast.showToast(msg: "⚠️ Error cropping face: $e", backgroundColor: Colors.red);
-      return null;
-    }
-  }
+  // Future<File?> cropFace(File imgFile) async {
+  //   try {
+  //     final inputImage = InputImage.fromFile(imgFile);
+  //     final faceDetector = GoogleMlKit.vision.faceDetector(FaceDetectorOptions(
+  //       enableContours: true,
+  //       enableClassification: true,
+  //       enableLandmarks: true,
+  //       enableTracking: true,
+  //       minFaceSize: 0.25,
+  //       performanceMode: FaceDetectorMode.accurate,
+  //     ));
+  //
+  //     final faces = await faceDetector.processImage(inputImage);
+  //     await faceDetector.close();
+  //
+  //     if (faces.isEmpty) {
+  //       Fluttertoast.showToast(msg: "⚠️ No face detected!", backgroundColor: Colors.orange);
+  //       return null;
+  //     }
+  //
+  //     // Load image into a processable format
+  //     final imageBytes = await imgFile.readAsBytes();
+  //     final image = img.decodeImage(imageBytes);
+  //     if (image == null) {
+  //       Fluttertoast.showToast(msg: "⚠️ Invalid image format!", backgroundColor: Colors.red);
+  //       return null;
+  //     }
+  //
+  //     // Get first detected face bounds
+  //     final face = faces.first;
+  //     final rect = face.boundingBox;
+  //
+  //     if (rect.width <= 0 || rect.height <= 0) {
+  //       Fluttertoast.showToast(msg: "⚠️ Face cropping failed!", backgroundColor: Colors.red);
+  //       return null;
+  //     }
+  //
+  //     // Ensure cropping dimensions do not exceed image size
+  //     int x = rect.left.toInt().clamp(0, image.width - 1);
+  //     int y = rect.top.toInt().clamp(0, image.height - 1);
+  //     int width = rect.width.toInt().clamp(1, image.width - x);
+  //     int height = rect.height.toInt().clamp(1, image.height - y);
+  //
+  //     // Crop the face
+  //     final croppedFace = img.copyCrop(image, x: x, y: y, width: width, height: height);
+  //
+  //     // Convert back to File
+  //     final croppedFile = File(imgFile.path.replaceFirst('.jpg', '_face.jpg'));
+  //     await croppedFile.writeAsBytes(img.encodeJpg(croppedFace));
+  //
+  //     return croppedFile;
+  //   } catch (e) {
+  //     Fluttertoast.showToast(msg: "⚠️ Error cropping face: $e", backgroundColor: Colors.red);
+  //     return null;
+  //   }
+  // }
 
   double _calculateSimilarity(List<double> emb1, List<double> emb2) {
     double dotProduct = 0.0, normA = 0.0, normB = 0.0;

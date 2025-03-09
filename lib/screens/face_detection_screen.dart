@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:image/image.dart' as img;
 
 class FaceDetectionScreen extends StatefulWidget {
   @override
@@ -17,8 +18,7 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
   bool _isProcessing = false;
   bool _isCameraInitialized = false;
   bool _isCapturing = false;
-  Size? _currentImageSize;
-  Rect? _faceRect;
+
 
   // Add validation rectangle parameters
    double _validationSize = 512;
@@ -97,7 +97,6 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
 
     setState(() {
       _isProcessing = true;
-      _currentImageSize = Size(image.width.toDouble(), image.height.toDouble());
     });
 
     final inputImage = _getInputImage(image);
@@ -173,7 +172,6 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
     }
     setState(() {
       _isValidFace = isFaceFullyInside && isFrontal && eyesOpen;
-      _faceRect = faceRect;
     });
     // print('Face bounding box: $faceRect');
     // print('Validation rectangle: $_validationRect');
@@ -211,14 +209,16 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
       }
 
       final image = await _controller.takePicture();
+      File? croppedFace = await cropFace(File(image.path));
 
       // Check if the widget is still mounted before navigating
       if (mounted) {
+
         // Delay before popping the result to avoid immediate navigation
-        Future.delayed(Duration(seconds: 2), () {
+        Future.delayed(Duration(seconds: 1), () {
           // Only pop the context if the widget is still mounted
           if (mounted) {
-            Navigator.pop(context, File(image.path));
+            Navigator.pop(context, croppedFace);
           }
         });
       }
@@ -232,6 +232,62 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> {
         });
       }
 
+    }
+  }
+  Future<File?> cropFace(File imgFile) async {
+    try {
+      final inputImage = InputImage.fromFile(imgFile);
+      final faceDetector = GoogleMlKit.vision.faceDetector(FaceDetectorOptions(
+        enableContours: true,
+        enableClassification: true,
+        enableLandmarks: true,
+        enableTracking: true,
+        minFaceSize: 0.25,
+        performanceMode: FaceDetectorMode.accurate,
+      ));
+
+      final faces = await faceDetector.processImage(inputImage);
+      await faceDetector.close();
+
+      if (faces.isEmpty) {
+
+        return null;
+      }
+
+      // Load image into a processable format
+      final imageBytes = await imgFile.readAsBytes();
+      final image = img.decodeImage(imageBytes);
+      if (image == null) {
+
+        return null;
+      }
+
+      // Get first detected face bounds
+      final face = faces.first;
+      final rect = face.boundingBox;
+
+      if (rect.width <= 0 || rect.height <= 0) {
+
+        return null;
+      }
+
+      // Ensure cropping dimensions do not exceed image size
+      int x = rect.left.toInt().clamp(0, image.width - 1);
+      int y = rect.top.toInt().clamp(0, image.height - 1);
+      int width = rect.width.toInt().clamp(1, image.width - x);
+      int height = rect.height.toInt().clamp(1, image.height - y);
+
+      // Crop the face
+      final croppedFace = img.copyCrop(image, x: x, y: y, width: width, height: height);
+
+      // Convert back to File
+      final croppedFile = File(imgFile.path.replaceFirst('.jpg', '_face.jpg'));
+      await croppedFile.writeAsBytes(img.encodeJpg(croppedFace));
+
+      return croppedFile;
+    } catch (e) {
+
+      return null;
     }
   }
 

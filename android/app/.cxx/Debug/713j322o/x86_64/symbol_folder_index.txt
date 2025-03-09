@@ -1,0 +1,1 @@
+D:\Face-recognition-with-Tflite-and-flutter\build\app\intermediates\cxx\Debug\713j322o\obj\x86_64
